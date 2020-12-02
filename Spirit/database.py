@@ -1,18 +1,18 @@
 import sqlite3, datetime
 
-class dataBase:
+class database:
     sqliteVersion = sqlite3.version
 
-    def __init__(dbName: str, autoCommit: bool=False):
+    def __init__(self, dbName: str, autoCommit: bool=False):
         self.__autoCommit = autoCommit
         self.__conn = sqlite3.connect(dbName)
         
-    def createTable(name: str, **kwargs):
+    def createTable(self, name: str, **kwargs):
         self.__conn.execute(f"CREATE TABLE IF NOT EXISTS {name} (" + ", ".join([f"{name} {value}" for name, value in kwargs.items()]) + ")")
         if self.__autoCommit:
             self.commit()
 
-    def insert(name: str, **kwargs):
+    def insert(self, name: str, **kwargs):
         self.__conn.execute(f"INSERT INTO {name} (" + 
                             ", ".join([name for name in kwargs.keys()]) + 
                             ") VALUES (" + 
@@ -21,8 +21,11 @@ class dataBase:
         if self.__autoCommit:
             self.commit()
 
-    def commit():
+    def commit(self):
         self.__conn.commit()
+
+    def rollBack(self):
+        self.__conn.rollback()
 
     
 
