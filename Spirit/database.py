@@ -1,8 +1,6 @@
 import sqlite3, datetime
 
 class database:
-    sqliteVersion = sqlite3.version
-
     def __init__(self, dbName: str, autoCommit: bool=False):
         self.__autoCommit = autoCommit
         self.__conn = sqlite3.connect(dbName)
