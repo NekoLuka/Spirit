@@ -14,7 +14,7 @@ class database:
         self.__conn.execute(f"INSERT INTO {name} (" + 
                             ", ".join([name for name in kwargs.keys()]) + 
                             ") VALUES (" + 
-                            ", ".join(["?" for i in len(kwargs)]) + 
+                            ", ".join(["?" for i in range(len(kwargs))]) + 
                             ")", [i for i in kwargs.values()])
         if self.__autoCommit:
             self.commit()
