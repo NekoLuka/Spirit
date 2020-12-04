@@ -46,6 +46,9 @@ class database:
         except Exception as e:
             return False
 
+    def commit(self):
+        self.__conn.commit()
+
 
 class quarryBuilder:
     class types:
