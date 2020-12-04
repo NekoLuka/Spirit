@@ -75,7 +75,10 @@ class quarryBuilder:
     def insert(name: str, columns: []) -> str:
         return f"INSERT INTO {name} ({', '.join(columns)}) VALUES ({', '.join(['?' for i in range(len(columns))])})"
 
-    # Add select function here
+    @staticmethod
+    def select(name: str, columns: [], where: str="", order: str="", limit: int=0):
+        return f"SELECT {', '.join(columns)} FROM {name} {f'WHERE {where}' if not where == '' else ''}" \
+               f"{f' ORDER BY {order}' if not order == '' else ''}{f' LIMIT {limit}' if limit else ''}"
 
     @staticmethod
     def column(name: str, type: str, unique: bool=False, primaryKey: bool=False, notNull: bool=False, default="") -> str:
