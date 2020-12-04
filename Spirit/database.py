@@ -49,6 +49,9 @@ class database:
     def commit(self):
         self.__conn.commit()
 
+    def rollback(self):
+        self.__conn.rollback()
+
 
 class quarryBuilder:
     class types:
