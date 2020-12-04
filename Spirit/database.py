@@ -26,7 +26,7 @@ class database:
     def addSQLFunction(self, name: str, func: object, parameterCount: int) -> None:
         self.__conn.create_function(name, parameterCount, func)
 
-    def quarry(self, quarry: str, values, fetch: bool=True):
+    def quarry(self, quarry: str, values: list=[], fetch: bool=True):
         try:
             if fetch:
                 return self.cursor.execute(quarry, values).fetchall()
@@ -36,7 +36,7 @@ class database:
         except Exception as e:
             return False
 
-    def massQuarry(self, quarry: str, values, fetch: bool=True):
+    def massQuarry(self, quarry: str, values: list=[], fetch: bool=True):
         try:
             if fetch:
                 return self.cursor.executemany(quarry, values).fetchall()
@@ -63,7 +63,11 @@ class quarryBuilder:
     SUBSTITUTE = "?"
 
     @staticmethod
-    def createTable(name: str, temporary: bool, ifNotExists: bool, columns: [], rowid: bool=True) -> str:
+    def cast(value1, value2):
+        return f"{value1} AS {value2}"
+
+    @staticmethod
+    def createTable(name: str, columns: list, temporary: bool=False, ifNotExists: bool=True,  rowid: bool=True) -> str:
         return f"CREATE{' TEMP' if temporary else ''} TABLE{' IF NOT EXISTS' if ifNotExists else ''} " \
                f"{name} ({', '.join(columns)}) {'WITHOUT ROWID' if not rowid else ''}"
 
@@ -72,17 +76,17 @@ class quarryBuilder:
         return f"DROP TABLE IF EXISTS {name}"
 
     @staticmethod
-    def insert(name: str, columns: []) -> str:
+    def insert(name: str, columns: list) -> str:
         return f"INSERT INTO {name} ({', '.join(columns)}) VALUES ({', '.join(['?' for i in range(len(columns))])})"
 
     @staticmethod
-    def select(name: str, columns: [], where: str="", order: str="", limit: int=0):
-        return f"SELECT {', '.join(columns)} FROM {name} {f'WHERE {where}' if not where == '' else ''}" \
+    def select(name: str, columns: list, condition: str="", order: str="", limit: int=0):
+        return f"SELECT {', '.join(columns)} FROM {name} {f'WHERE {condition}' if not condition == '' else ''}" \
                f"{f' ORDER BY {order}' if not order == '' else ''}{f' LIMIT {limit}' if limit else ''}"
 
     @staticmethod
-    def delete(name: str, where: str=""):
-        return f"DELETE FROM {name} {f'WHERE {where}' if not where == '' else ''}"
+    def delete(name: str, condition: str=""):
+        return f"DELETE FROM {name} {f'WHERE {condition}' if not condition == '' else ''}"
 
     @staticmethod
     def column(name: str, type: str, unique: bool=False, primaryKey: bool=False, notNull: bool=False, default="") -> str:
