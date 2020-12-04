@@ -1,4 +1,4 @@
-import sqlite3, datetime
+import sqlite3
 from Spirit.password import *
 
 
@@ -109,3 +109,58 @@ class quarryBuilder:
         @staticmethod
         def setTimeStamp(year: int, month: int, day: int, hour: int, minute: int, second: int) -> str:
             return f"{year}-{month}-{day} {hour}:{minute}:{second}"
+
+    class operators:
+        class arithmetic:
+            @staticmethod
+            def add(value1, value2):
+                return f"{value1} + {value2}"
+
+            @staticmethod
+            def subtract(value1, value2):
+                return f"{value1} - {value2}"
+
+            @staticmethod
+            def multiply(value1, value2):
+                return f"{value1} * {value2}"
+
+            @staticmethod
+            def division(value1, value2):
+                return f"{value1} / {value2}"
+
+            @staticmethod
+            def modulus(value1, value2):
+                return f"{value1} % {value2}"
+
+        class comparison:
+            @staticmethod
+            def equal(value1, value2):
+                return f"{value1} == {value2}"
+
+            @staticmethod
+            def notEqual(value1, value2):
+                return f"{value1} != {value2}"
+
+            @staticmethod
+            def greater(value1, value2):
+                return f"{value1} > {value2}"
+
+            @staticmethod
+            def less(value1, value2):
+                return f"{value1} < {value2}"
+
+            @staticmethod
+            def greaterOrEqual(value1, value2):
+                return f"{value1} >= {value2}"
+
+            @staticmethod
+            def lessOrEqual(value1, value2):
+                return f"{value1} <= {value2}"
+
+            @staticmethod
+            def notGreater(value1, value2):
+                return f"{value1} !> {value2}"
+
+            @staticmethod
+            def notLess(value1, value2):
+                return f"{value1} !< {value2}"
