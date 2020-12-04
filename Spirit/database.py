@@ -26,7 +26,7 @@ class database:
     def addSQLFunction(self, name: str, func: object, parameterCount: int) -> None:
         self.__conn.create_function(name, parameterCount, func)
 
-    def quarry(self, quarry: str, values: list=[], fetch: bool=True):
+    def quarry(self, quarry: str, values: list=[], fetch: bool=False):
         try:
             if fetch:
                 return self.cursor.execute(quarry, values).fetchall()
@@ -36,7 +36,7 @@ class database:
         except Exception as e:
             return False
 
-    def massQuarry(self, quarry: str, values: list=[], fetch: bool=True):
+    def massQuarry(self, quarry: str, values: list=[], fetch: bool=False):
         try:
             if fetch:
                 return self.cursor.executemany(quarry, values).fetchall()
