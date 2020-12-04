@@ -10,7 +10,7 @@ class database:
         return 1 if checkPassword(text, hash) else 0
 
     def __logging(self, statement: str):
-        pass
+        pass # function needs te added after logging has been implemented
 
     def __init__(self, dbName: str="", autoCommit: bool=False, inMemory: bool=False, logging: bool=False):
         self.__autoCommit = autoCommit
