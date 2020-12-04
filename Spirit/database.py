@@ -81,6 +81,10 @@ class quarryBuilder:
                f"{f' ORDER BY {order}' if not order == '' else ''}{f' LIMIT {limit}' if limit else ''}"
 
     @staticmethod
+    def delete(name: str, where: str=""):
+        return f"DELETE FROM {name} {f'WHERE {where}' if not where == '' else ''}"
+
+    @staticmethod
     def column(name: str, type: str, unique: bool=False, primaryKey: bool=False, notNull: bool=False, default="") -> str:
         return f"{name} {type}{' PRIMARY KEY' if primaryKey else ''}{' UNIQUE' if unique else ''}" \
                f"{' NOT NULL' if notNull else ''}{f' DEFAULT {default}' if default != '' else ''}"
