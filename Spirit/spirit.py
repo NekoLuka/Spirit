@@ -2,6 +2,7 @@ import socket
 import threading
 from Spirit.requestDecoder import requestDecoder
 from Spirit.responseEncoder import responseEncoder
+from Spirit.logger import logger
 
 # Main class with all logic to run a server
 class spirit:
@@ -10,21 +11,24 @@ class spirit:
         self.port = port
         self.routes = {}
 
+        logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
+
         # Configuration variables
         self.localFileDirectory = ""
         self.custom404 = self.__custom404
         self.custom500 = self.__custom500
 
     # Set the url to fire the function on
-    def route(self, url, methods=["POST", "GET"]):
+    def route(self, url: str, methods: list=["POST", "GET"]):
         def wrapper(fn):
             self.routes[url] = {"function": fn, "methods": methods}
             return fn
         return wrapper
 
     # Main function for handling a connection
-    def __run(self, link):
-        header = requestDecoder(link)
+    def __run(self, link, ip):
+        header = requestDecoder(link, ip)
+        logger.info(f"{header.ip} requested {header.url}")
         try:
             route = self.routes[header.url]
 
@@ -41,23 +45,26 @@ class spirit:
                         link.sendall(val)
                     else:
                         link.sendall(responseEncoder().getData())
+                    logger.info(f"200 Successfully handled request from {header.ip}")
                 except Exception as e:
-                    print(e)
                     link.sendall(self.custom500(header).getData())
+                    logger.error(f"500 {e} on url {header.url} from {header.ip}")
+
             else:
                 response = responseEncoder("405 Method Not Allowed")
                 response.setHeader("Allow", ",".join(route["methods"]))
                 response.setData("405 method not allowed")
                 link.sendall(response.getData())
+                logger.info(f"405 {header.ip} used {header.method} which is not allowed")
         except Exception as e:
-            print(e)
             try:
                 data = responseEncoder()
                 data.setDataFromFile(self.localFileDirectory + header.url[1:], header.header["Accept"].split(",")[0])
                 link.sendall(data.getData())
+                logger.info(f"200 Successfully handled request from {header.ip}")
             except Exception as e:
-                print(e)
                 link.sendall(self.custom404(header).getData())
+                logger.info(f"404 {header.ip} requested an unknown file")
 
         link.close()
         return
@@ -71,7 +78,7 @@ class spirit:
         while True:
             try:
                 link, ip = sock.accept()
-                threading.Thread(target=self.__run, args=(link,)).start()
+                threading.Thread(target=self.__run, args=(link, ip[0])).start()
             except Exception as e:
                 print(e)
                 continue
