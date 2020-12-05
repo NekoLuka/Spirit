@@ -28,7 +28,7 @@ class requestDecoder:
         def data(self, fieldName: str) -> bytes:
             return self.__files.get(fieldName).get("data")
 
-    def __init__(self, link: socket.socket):
+    def __init__(self, link: socket.socket, ip: str):
         header = b""
         lastByte = b""
         while True:
@@ -50,6 +50,7 @@ class requestDecoder:
         self.file = {}
         self.cookie = {}
         self.header = {}
+        self.ip = ip
 
         self.method, self.url, self.protocol = headerList[0].split(" ")
 
