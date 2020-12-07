@@ -6,3 +6,4 @@ logging.txt
 .idea
 Spirit/__pycache__
 *.log
+*db
