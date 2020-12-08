@@ -1,6 +1,7 @@
 import sqlite3
 from Spirit.password import *
-
+from threading import Lock
+from Spirit.logger import logger
 
 class database:
     def __salt(self, text):
@@ -9,15 +10,12 @@ class database:
     def __checkSalt(self, text, hash):
         return 1 if checkPassword(text, hash) else 0
 
-    def __logging(self, statement: str):
-        pass # function needs te added after logging has been implemented
-
-    def __init__(self, dbName: str="", autoCommit: bool=False, inMemory: bool=False, logging: bool=False):
+    def __init__(self, dbName: str="", inMemory: bool=False, autoCommit: bool=False, timeOut: int=-1):
+        self.__lock = Lock()
+        self.__timeOut = timeOut
         self.__autoCommit = autoCommit
-        self.__conn = sqlite3.connect(dbName if not inMemory else ":memory:")
-        self.__conn.row_factory = sqlite3.Row
-        if logging:
-            self.__conn.set_trace_callback(self.__logging)
+
+        self.__conn = sqlite3.connect(dbName if not inMemory else ":memory:", check_same_thread=False)
         self.__conn.create_function("salt", 1, self.__salt)
         self.__conn.create_function("desalt", 2, self.__checkSalt)
         self.__conn.isolation_level = None if autoCommit else "DEFERRED"
@@ -27,30 +25,29 @@ class database:
         self.__conn.create_function(name, parameterCount, func)
 
     def quarry(self, quarry: str, values: list=[], fetch: bool=False):
+        self.__lock.acquire(timeout=self.__timeOut)
         try:
             if fetch:
-                return self.cursor.execute(quarry, values).fetchall()
+                data = self.cursor.execute(quarry, values).fetchall()
+                if self.__autoCommit: self.__lock.release()
+                return data
             else:
                 self.cursor.execute(quarry, values)
+                if self.__autoCommit: self.__lock.release()
                 return True
         except Exception as e:
-            return False
-
-    def massQuarry(self, quarry: str, values: list=[], fetch: bool=False):
-        try:
-            if fetch:
-                return self.cursor.executemany(quarry, values).fetchall()
-            else:
-                self.cursor.executemany(quarry, values)
-                return True
-        except Exception as e:
+            logger.error(str(e))
+            self.__conn.rollback()
+            self.__lock.release()
             return False
 
     def commit(self):
         self.__conn.commit()
+        self.__lock.release()
 
     def rollback(self):
         self.__conn.rollback()
+        self.__lock.release()
 
 
 class quarryBuilder:
