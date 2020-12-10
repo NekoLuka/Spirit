@@ -106,10 +106,10 @@ class requestDecoder:
                         headerList.remove(b"")
                     headerDict = {value.split(b":", 1)[0].strip().decode("utf-8"): value.split(b":", 1)[1].strip().decode("utf-8") for value in headerList}
 
-                    fieldName = headerDict.get("Content-Disposition").split(";")[1].strip().split("=")[1].strip("\"")
+                    fieldName = headerDict.get("content-disposition").split(";")[1].strip().split("=")[1].strip("\"")
                     try:
-                        fileName = headerDict.get("Content-Disposition").split(";")[2].strip().split("=")[1].strip("\"")
-                        fileContentType = headerDict.get("Content-Type")
+                        fileName = headerDict.get("content-disposition").split(";")[2].strip().split("=")[1].strip("\"")
+                        fileContentType = headerDict.get("content-type")
                         self.file[fieldName] = {"name": fileName, "mimeType": fileContentType, "data": value[:-4]}
                     except:
                         self.post[fieldName] = value[:-4].decode("utf-8")
