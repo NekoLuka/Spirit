@@ -69,10 +69,10 @@ class requestDecoder:
             if i == '':
                 continue
             name, value = i.split(":", 1)
-            self.header[name] = value.strip()
+            self.header[name.lower()] = value.strip()
 
         try:
-            cookieList = self.header["Cookie"].replace(" ", "").split(";")
+            cookieList = self.header["cookie"].replace(" ", "").split(";")
             if not cookieList[0] == '':
                 for i in cookieList:
                     name, value = i.split("=")
@@ -81,8 +81,8 @@ class requestDecoder:
             pass
 
         try:
-            contentType = self.header["Content-Type"]
-            contentLength = int(self.header["Content-Length"])
+            contentType = self.header["content-type"]
+            contentLength = int(self.header["content-length"])
             if "application/x-www-form-urlencoded" in contentType:
                 postData = link.recv(contentLength).decode("utf-8")
                 for i in postData.split("&"):
@@ -94,7 +94,7 @@ class requestDecoder:
             elif "multipart/form-data" in contentType:
                 formData = link.recv(contentLength)
                 formDataList = formData.split(
-                    self.header["Content-Type"].split(";")[1].strip().split("=")[1].encode()
+                    self.header["content-type"].split(";")[1].strip().split("=")[1].encode()
                 )
                 for i in formDataList:
                     if i == b"--" or i == b"":
