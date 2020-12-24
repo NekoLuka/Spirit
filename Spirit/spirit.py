@@ -9,6 +9,7 @@ class spirit:
     def __init__(self, host="", port=80):
         self.host = host
         self.port = port
+        self.backlog = 10
         self.routes = {}
 
         logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
@@ -71,16 +72,24 @@ class spirit:
 
     # Function to cal to start the server
     def run(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((self.host, self.port))
-        sock.listen(10)
+        if socket.has_dualstack_ipv6():
+            sock = socket.create_server(
+                (self.host, self.port),
+                backlog=self.backlog,
+                family=socket.AF_INET6,
+                dualstack_ipv6=True
+            )
+        else:
+            sock = socket.create_server(
+                (self.host, self.port),
+                backlog=self.backlog
+            )
 
         while True:
             try:
                 link, ip = sock.accept()
                 threading.Thread(target=self.__run, args=(link, ip[0])).start()
-            except Exception as e:
-                print(e)
+            except:
                 continue
 
     # Function to configure the server
