@@ -1,4 +1,4 @@
-import threading, time
+import time
 
 class logger:
     DISABLED = -1
@@ -12,10 +12,7 @@ class logger:
     __logLevel = 1
 
     __fileName = "Spirit.log"
-
-    __logQue = []
-
-    __shutdown = False
+    __fileObject = None
 
     @classmethod
     def setLogLevel(cls, level: int=1):
@@ -30,56 +27,46 @@ class logger:
         cls.__fileName = path
 
     @classmethod
-    def shutdown(cls):
-        cls.__shutdown = True
-
-    @classmethod
     def info(cls, message: str):
         data = time.ctime() + " - INFO: " + message + "\n"
-        cls.__logQue.append((cls.INFO, data))
         if cls.INFO <= cls.__reportLevel:
             print(data)
+        if cls.INFO <= cls.__logLevel and cls.__fileObject:
+            cls.__fileObject.write(data)
 
     @classmethod
     def critical(cls, message: str):
         data = time.ctime() + " - CRITICAL: " + message + "\n"
-        cls.__logQue.append((cls.CRITICAL, data))
         if cls.CRITICAL <= cls.__reportLevel:
             print(data)
+        if cls.CRITICAL <= cls.__logLevel and cls.__fileObject:
+            cls.__fileObject.write(data)
 
     @classmethod
     def error(cls, message: str):
         data = time.ctime() + " - ERROR: " + message + "\n"
-        cls.__logQue.append((cls.ERROR, data))
         if cls.ERROR <= cls.__reportLevel:
             print(data)
+        if cls.ERROR <= cls.__logLevel and cls.__fileObject:
+            cls.__fileObject.write(data)
 
     @classmethod
     def warning(cls, message: str):
         data = time.ctime() + " - WARNING: " + message + "\n"
-        cls.__logQue.append((cls.WARNING, data))
         if cls.WARNING <= cls.__reportLevel:
             print(data)
+        if cls.WARNING <= cls.__logLevel and cls.__fileObject:
+            cls.__fileObject.write(data)
 
     @classmethod
     def debug(cls, message: str):
         data = time.ctime() + " - DEBUG: " + message + "\n"
-        cls.__logQue.append((cls.DEBUG, data))
         if cls.DEBUG <= cls.__reportLevel:
             print(data)
+        if cls.DEBUG <= cls.__logLevel and cls.__fileObject:
+            cls.__fileObject.write(data)
 
     @classmethod
-    def startLogger(cls):
-        threading.Thread(target=cls.__logger).start()
+    def run(cls):
+        cls.__fileObject = open(cls.__fileName, "a")
 
-    @classmethod
-    def __logger(cls):
-        with open(cls.__fileName, 'a') as file:
-            while not cls.__shutdown:
-                while len(cls.__logQue) > 0:
-                    message = cls.__logQue[0]
-                    if message[0] <= cls.__logLevel:
-                        file.write(message[1])
-                    cls.__logQue.pop(0)
-                time.sleep(1)
-            file.close()
