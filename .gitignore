@@ -5,5 +5,5 @@ salting.txt
 logging.txt
 .idea
 Spirit/__pycache__
+*.db
 *.log
-*db
