@@ -6,8 +6,8 @@ class requestDecoder:
         def __init__(self, data: dict):
             self.__varData = data
 
-        def __getitem__(self, item):
-            return self.__varData.get(item)
+        def __getitem__(self, item: str):
+            return self.__varData.get(item.lower())
 
     class __file:
         def __init__(self, files: dict):
