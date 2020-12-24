@@ -1,20 +1,41 @@
 from Spirit.responseEncoder import responseEncoder
 from Spirit.requestDecoder import requestDecoder
+from Spirit.logger import logger
 import uuid
 import json
 import os
+import time
+import threading
+import stat
 
 # Class for managing sessions
 class session:
     sessionFolder = "sessions/"
     __sessionFolderCreated = False
+    autoCleanupAfter = 86400
+    autoCleanupRunTimer = 300
+    autoCleanupEnable = True
+
+    @classmethod
+    def cleanup(cls):
+        logger.info("Started automatic session cleanup")
+        while True:
+            time.sleep(cls.autoCleanupRunTimer)
+            if not cls.autoCleanupEnable:
+                continue
+
+            if not os.path.isdir(cls.sessionFolder):
+                os.mkdir(cls.sessionFolder)
+                continue
+
+            for i in os.listdir(cls.sessionFolder):
+                lastAccessTime = os.stat(cls.sessionFolder + i)[stat.ST_ATIME]
+                if (int(time.time()) - lastAccessTime) >= cls.autoCleanupAfter:
+                    os.remove(cls.sessionFolder + i)
+
+
 
     def __init__(self, context: requestDecoder, response: responseEncoder):
-        if not self.__sessionFolderCreated:
-            if not os.path.isdir(self.sessionFolder):
-                os.mkdir(self.sessionFolder)
-            self.__sessionFolderCreated = True
-
         self.__sessionVars = {}
         self.__sessionVarsBackup = {}
 
@@ -38,10 +59,7 @@ class session:
         self.__unset = True
 
     def __getitem__(self, item):
-        try:
-            return self.__sessionVars.get(item)
-        except:
-            return
+        return self.__sessionVars.get(item)
 
     def __setitem__(self, key, value):
         self.__sessionVars[key] = value
@@ -50,3 +68,5 @@ class session:
         if self.__sessionVars != self.__sessionVarsBackup and not self.__unset:
             with open(self.sessionFolder + self.spiritKey, "w") as file:
                 json.dump(self.__sessionVars, file)
+
+threading.Thread(target=session.cleanup).start()
