@@ -28,7 +28,7 @@ class spirit:
     # Main function for handling a connection
     def __run(self, link, ip):
         header = requestDecoder(link, ip)
-        logger.info(f"{header.ip} requested {header.url}")
+        logger.info(f"{header.ip} requested '{header.url}'")
         try:
             route = self.routes[header.url]
 
@@ -45,26 +45,26 @@ class spirit:
                         link.sendall(val)
                     else:
                         link.sendall(responseEncoder().getData())
-                    logger.info(f"200 Successfully handled request from {header.ip}")
+                    logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
                 except Exception as e:
                     link.sendall(self.custom500(header).getData())
-                    logger.error(f"500 {e} on url {header.url} from {header.ip}")
+                    logger.error(f"{e} on url {header.url} from {header.ip}")
 
             else:
                 response = responseEncoder("405 Method Not Allowed")
                 response.setHeader("Allow", ",".join(route["methods"]))
                 response.setData("405 method not allowed")
                 link.sendall(response.getData())
-                logger.info(f"405 {header.ip} used {header.method} which is not allowed")
+                logger.info(f"{header.ip} used {header.method} which is not allowed")
         except Exception as e:
             try:
                 data = responseEncoder()
                 data.setDataFromFile(self.localFileDirectory + header.url[1:], header.header["Accept"].split(",")[0])
                 link.sendall(data.getData())
-                logger.info(f"200 Successfully handled request from {header.ip}")
+                logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
             except Exception as e:
                 link.sendall(self.custom404(header).getData())
-                logger.info(f"404 {header.ip} requested an unknown file")
+                logger.info(f"{header.ip} requested '{header.url}', which is unknown")
 
         link.close()
         return
