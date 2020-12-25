@@ -1,15 +1,23 @@
 import socket
+import ssl
 import threading
 from Spirit.requestDecoder import requestDecoder
 from Spirit.responseEncoder import responseEncoder
 from Spirit.logger import logger
+from Spirit.redirect import redirect
 
 # Main class with all logic to run a server
 class spirit:
-    def __init__(self, host="", port=80):
+    def __init__(self, host: str="", port: int=80, SSL: bool=False, autoRedirectToSSL: bool=False, SSLRedirectPort: int=80):
         self.host = host
         self.port = port
+        self.backlog = 10
         self.routes = {}
+        self.SSL = SSL
+        self.autoRedirectToSSL = autoRedirectToSSL
+        self.SSLRedirectPort = SSLRedirectPort
+        self.certChain = ""
+        self.certKey = ""
 
         logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
 
@@ -71,17 +79,46 @@ class spirit:
 
     # Function to cal to start the server
     def run(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((self.host, self.port))
-        sock.listen(10)
+        if self.SSL:
+            sslContext = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            sslContext.load_cert_chain(certfile=self.certChain, keyfile=self.certKey)
+        else:
+            sslContext = None
+
+        if self.autoRedirectToSSL:
+            threading.Thread(target=self.__autoRedirect).start()
+
+        if socket.has_dualstack_ipv6():
+            sock = socket.create_server(
+                (self.host, self.port),
+                backlog=self.backlog,
+                family=socket.AF_INET6,
+                dualstack_ipv6=True
+            )
+        else:
+            sock = socket.create_server(
+                (self.host, self.port),
+                backlog=self.backlog
+            )
 
         while True:
             try:
                 link, ip = sock.accept()
-                threading.Thread(target=self.__run, args=(link, ip[0])).start()
-            except Exception as e:
-                print(e)
+                threading.Thread(target=self.__run, args=(
+                    sslContext.wrap_socket(link, server_side=True) if self.SSL else link,
+                    ip[0]
+                )).start()
+            except:
                 continue
+
+    def __autoRedirect(self):
+        sock = socket.create_server((self.host, self.SSLRedirectPort))
+        while True:
+            link, ip = sock.accept()
+            header = requestDecoder(link, ip[0])
+            link.send(redirect(f"https://{header.header['host']}:{self.port}").getData())
+            link.close()
+
 
     # Function to configure the server
     def configure(self, localFileLocation: str, custom404Function):

@@ -7,3 +7,4 @@ logging.txt
 Spirit/__pycache__
 *.db
 *.log
+ssl
