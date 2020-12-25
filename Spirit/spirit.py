@@ -4,7 +4,7 @@ import threading
 from Spirit.requestDecoder import requestDecoder
 from Spirit.responseEncoder import responseEncoder
 from Spirit.logger import logger
-from Spirit.redirect import redirect
+import Spirit.statusFunctions as status
 
 # Main class with all logic to run a server
 class spirit:
@@ -18,10 +18,13 @@ class spirit:
         self.certChain = ""
         self.certKey = ""
         self.localFileDirectory = ""
-        self.custom404 = self.__custom404
-        self.custom500 = self.__custom500
 
         self.__routes = {}
+        self.__statusFunctions = {
+            "404": status.default404,
+            "405": status.default405,
+            "500": status.default500
+        }
 
         logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
 
@@ -29,6 +32,13 @@ class spirit:
     def route(self, url: str, methods: list=["POST", "GET"]):
         def wrapper(fn):
             self.__routes[url] = {"function": fn, "methods": methods}
+            return fn
+        return wrapper
+
+    # Set the function to fire on a certain status
+    def status(self, status: int):
+        def wrapper(fn):
+            self.__statusFunctions[str(status)] = fn
             return fn
         return wrapper
 
@@ -54,15 +64,12 @@ class spirit:
                         link.sendall(responseEncoder().getData())
                     logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
                 except Exception as e:
-                    link.sendall(self.custom500(header).getData())
+                    link.sendall(self.__statusFunctions["500"](header).getData())
                     logger.error(f"{e} on url {header.url} from {header.ip}")
 
             else:
-                response = responseEncoder("405 Method Not Allowed")
-                response.setHeader("Allow", ",".join(route["methods"]))
-                response.setData("405 method not allowed")
-                link.sendall(response.getData())
-                logger.info(f"{header.ip} used {header.method} which is not allowed")
+                link.sendall(self.__statusFunctions["405"](header, route["methods"]).getData())
+                logger.info(f"{header.ip} used {header.method} on '{header.url}' which is not allowed")
         except Exception as e:
             try:
                 data = responseEncoder()
@@ -70,7 +77,7 @@ class spirit:
                 link.sendall(data.getData())
                 logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
             except Exception as e:
-                link.sendall(self.custom404(header).getData())
+                link.sendall(self.__statusFunctions["404"](header).getData())
                 logger.info(f"{header.ip} requested '{header.url}', which is unknown")
 
         link.close()
@@ -115,15 +122,5 @@ class spirit:
         while True:
             link, ip = sock.accept()
             header = requestDecoder(link, ip[0])
-            link.send(redirect(f"https://{header.header['host']}:{self.port}").getData())
+            link.send(status.defaultRedirect(f"https://{header.header['host']}:{self.port}").getData())
             link.close()
-
-    def __custom404(self, context: requestDecoder) -> responseEncoder:
-        data = responseEncoder("404 Not Found")
-        data.setData('404 not found')
-        return data
-
-    def __custom500(self, context: requestDecoder) -> responseEncoder:
-        response = responseEncoder("503 Internal Server Error")
-        response.setData("503 internal server error")
-        return response
