@@ -12,24 +12,23 @@ class spirit:
         self.host = host
         self.port = port
         self.backlog = 10
-        self.routes = {}
         self.SSL = SSL
         self.autoRedirectToSSL = autoRedirectToSSL
         self.SSLRedirectPort = SSLRedirectPort
         self.certChain = ""
         self.certKey = ""
-
-        logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
-
-        # Configuration variables
         self.localFileDirectory = ""
         self.custom404 = self.__custom404
         self.custom500 = self.__custom500
 
+        self.__routes = {}
+
+        logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
+
     # Set the url to fire the function on
     def route(self, url: str, methods: list=["POST", "GET"]):
         def wrapper(fn):
-            self.routes[url] = {"function": fn, "methods": methods}
+            self.__routes[url] = {"function": fn, "methods": methods}
             return fn
         return wrapper
 
@@ -38,7 +37,7 @@ class spirit:
         header = requestDecoder(link, ip)
         logger.info(f"{header.ip} requested '{header.url}'")
         try:
-            route = self.routes[header.url]
+            route = self.__routes[header.url]
 
             if header.method in route["methods"]:
                 try:
@@ -118,12 +117,6 @@ class spirit:
             header = requestDecoder(link, ip[0])
             link.send(redirect(f"https://{header.header['host']}:{self.port}").getData())
             link.close()
-
-
-    # Function to configure the server
-    def configure(self, localFileLocation: str, custom404Function):
-        self.localFileDirectory = localFileLocation
-        self.custom404 = custom404Function
 
     def __custom404(self, context: requestDecoder) -> responseEncoder:
         data = responseEncoder("404 Not Found")
