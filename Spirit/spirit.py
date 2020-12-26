@@ -65,7 +65,7 @@ class spirit:
                     logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
                 except Exception as e:
                     link.sendall(self.__statusFunctions["500"](header).getData())
-                    logger.error(f"{e} on url {header.url} from {header.ip}")
+                    logger.error(f"{e} on url '{header.url}' from {header.ip}")
 
             else:
                 link.sendall(self.__statusFunctions["405"](header, route["methods"]).getData())
