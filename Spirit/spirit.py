@@ -1,10 +1,13 @@
 import socket
 import ssl
 import threading
+import re
+import uuid
 from Spirit.requestDecoder import requestDecoder
 from Spirit.responseEncoder import responseEncoder
 from Spirit.logger import logger
 import Spirit.statusFunctions as status
+from Spirit.consts import statusCode
 
 # Main class with all logic to run a server
 class spirit:
@@ -19,7 +22,8 @@ class spirit:
         self.certKey = ""
         self.localFileDirectory = ""
 
-        self.__routes = {}
+        self.__routes = []
+        self.__functions = {}
         self.__statusFunctions = {
             "404": status.default404,
             "405": status.default405,
@@ -30,8 +34,22 @@ class spirit:
 
     # Set the url to fire the function on
     def route(self, url: str, methods: list=["POST", "GET"]):
+        targetID = uuid.uuid4().hex
+        pattern = "^" + url + "$"
+        vars = []
+
+        while True:
+            if varStart := pattern.find("<"):
+                if varStart == -1:
+                    break
+                varEnd = pattern.find(">") + 1
+                vars.append(pattern[varStart+1:varEnd-1])
+                pattern = pattern.replace(pattern[varStart:varEnd], r"(\w+)")
+
+        self.__routes.append({"pattern": pattern, "var": vars, "methods": methods, "target": targetID})
+
         def wrapper(fn):
-            self.__routes[url] = {"function": fn, "methods": methods}
+            self.__functions[targetID] = fn
             return fn
         return wrapper
 
@@ -46,42 +64,61 @@ class spirit:
     def __run(self, link, ip):
         header = requestDecoder(link, ip)
         logger.info(f"{header.ip} requested '{header.url}'")
+
+        for route in self.__routes:
+            if match := re.search(route["pattern"], header.url):
+                if header.method in route["methods"]:
+                    varDict = {route["var"][i]: match.group(i + 1) for i in range(len(route["var"]))}
+
+                    try:
+                        val = self.__functions[route["target"]](header, **varDict)
+                    except Exception as e:
+                        # Handle errors in the user defined function with a internal server error
+                        link.sendall(self.__statusFunctions["500"](header).getData())
+                        logger.error(f"{e} on url '{header.url}' from {header.ip}")
+                        link.close()
+                        return
+
+                    try:
+                        if type(val) is responseEncoder:
+                            link.sendall(val.getData())
+                        elif type(val) is str:
+                            response = responseEncoder()
+                            response.setData(val)
+                            link.sendall(response.getData())
+                        elif type(val) is bytes:
+                            link.sendall(val)
+                        else:
+                            if header.method == "POST":
+                                link.sendall(responseEncoder(statusCode[201]).getData())
+                            else:
+                                link.sendall(responseEncoder(statusCode[204]).getData())
+                        logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
+                        link.close()
+                        return
+                    except Exception as e:
+                        logger.critical(f"{e} on sending data, failed to send reply")
+                        link.close()
+                        return
+
+                else:
+                    link.sendall(self.__statusFunctions["405"](header).getData())
+                    logger.info(f"{header.ip} used {header.method} on '{header.url}' which is not allowed")
+                    link.close()
+                    return
+
+        # Handle looking for file here
         try:
-            route = self.__routes[header.url]
-
-            if header.method in route["methods"]:
-                try:
-                    val = route["function"](header)
-                    if type(val) is str:
-                        data = responseEncoder()
-                        data.setData(val)
-                        link.sendall(data.getData())
-                    elif type(val) is responseEncoder:
-                        link.sendall(val.getData())
-                    elif type(val) is bytes:
-                        link.sendall(val)
-                    else:
-                        link.sendall(responseEncoder().getData())
-                    logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
-                except Exception as e:
-                    link.sendall(self.__statusFunctions["500"](header).getData())
-                    logger.error(f"{e} on url '{header.url}' from {header.ip}")
-
-            else:
-                link.sendall(self.__statusFunctions["405"](header, route["methods"]).getData())
-                logger.info(f"{header.ip} used {header.method} on '{header.url}' which is not allowed")
+            response = responseEncoder()
+            response.setDataFromFile(self.localFileDirectory + header.url[1:], header.header["Accept"].split(",")[0])
+            link.sendall(response.getData())
+            logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
         except Exception as e:
-            try:
-                data = responseEncoder()
-                data.setDataFromFile(self.localFileDirectory + header.url[1:], header.header["Accept"].split(",")[0])
-                link.sendall(data.getData())
-                logger.info(f"Successfully handled request for '{header.url}' from {header.ip}")
-            except Exception as e:
-                link.sendall(self.__statusFunctions["404"](header).getData())
-                logger.info(f"{header.ip} requested '{header.url}', which is unknown")
-
-        link.close()
-        return
+            link.sendall(self.__statusFunctions["404"](header).getData())
+            logger.info(f"{header.ip} requested '{header.url}', which is unknown")
+        finally:
+            link.close()
+            return
 
     # Function to cal to start the server
     def run(self):
