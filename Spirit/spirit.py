@@ -3,6 +3,7 @@ import ssl
 import threading
 import re
 import uuid
+import base64
 from Spirit.requestDecoder import requestDecoder
 from Spirit.responseEncoder import responseEncoder
 from Spirit.logger import logger
@@ -46,7 +47,36 @@ class spirit:
                 vars.append(pattern[varStart+1:varEnd-1])
                 pattern = pattern.replace(pattern[varStart:varEnd], r"(\w+)")
 
-        self.__routes.append({"pattern": pattern, "var": vars, "methods": methods, "target": targetID})
+        self.__routes.append({"pattern": pattern, "var": vars, "methods": methods, "target": targetID, "authorized": False})
+
+        def wrapper(fn):
+            self.__functions[targetID] = fn
+            return fn
+        return wrapper
+
+    def authorizedRoute(self, credentials, realm: str, url: str, methods: list=["POST", "GET"]):
+        targetID = uuid.uuid4().hex
+        pattern = "^" + url + "$"
+        vars = []
+
+        while True:
+            if varStart := pattern.find("<"):
+                if varStart == -1:
+                    break
+                varEnd = pattern.find(">") + 1
+                vars.append(pattern[varStart+1:varEnd-1])
+                pattern = pattern.replace(pattern[varStart:varEnd], r"(\w+)")
+
+        self.__routes.append({
+            "pattern": pattern,
+            "var": vars,
+            "methods": methods,
+            "target": targetID,
+            "authorized": True,
+            "function": callable(credentials),
+            "credentials": credentials,
+            "realm": realm
+        })
 
         def wrapper(fn):
             self.__functions[targetID] = fn
@@ -68,6 +98,35 @@ class spirit:
         for route in self.__routes:
             if match := re.search(route["pattern"], header.url):
                 if header.method in route["methods"]:
+                    if route["authorized"]:
+                        if not header.header["Authorization"]:
+                            response = responseEncoder(statusCode[401])
+                            response.setHeader("WWW-Authenticate", f"Basic realm=\"{route['realm']}\"")
+                            link.sendall(response.getData())
+                            link.close()
+                            return
+                        protocol, authData = header.header["Authorization"].split(" ")
+                        if not protocol.lower() == "basic":
+                            link.sendall(responseEncoder(statusCode[409]).getData())
+                            link.close()
+                            return
+                        user, password = base64.b64decode(authData.encode()).decode().split(":", 1)
+                        if route["function"]:
+                            if route["credentials"](user, password):
+                                pass
+                            else:
+                                link.sendall(responseEncoder(statusCode[403]).getData())
+                                link.close()
+                                return
+                        else:
+                            if suser := route["credentials"].get(user):
+                                if suser == password:
+                                    pass
+                            else:
+                                link.sendall(responseEncoder(statusCode[403]).getData())
+                                link.close()
+                                return
+
                     varDict = {route["var"][i]: match.group(i + 1) for i in range(len(route["var"]))}
 
                     try:
