@@ -1,6 +1,6 @@
 # Class to encode a HTTP response
 class responseEncoder:
-    def __init__(self, status: str="200 OK", protocol: str="HTTP/1.0"):
+    def __init__(self, status: str="200 OK", protocol: str="HTTP/1.1"):
         self.__stats = status
         self.__protocol = protocol
         self.__data = b""
@@ -49,7 +49,7 @@ class responseEncoder:
 
     # Return the formatted request with the set parameters
     def getData(self) -> bytes:
-        header = f"{self.__protocol} {self.__stats}\r\nServer: Spirit\r\nContent-Type: {self.__mimeType}\r\nContent-Length: {self.__dataSize}\r\n"
+        header = f"{self.__protocol} {self.__stats}\r\nServer: Spirit\r\nContent-Type: {self.__mimeType}\r\nContent-Length: {self.__dataSize}\r\nConnection: close\r\n"
 
         for i in self.__headers:
             header += f"{i}\r\n"
