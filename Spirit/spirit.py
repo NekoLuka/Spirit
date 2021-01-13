@@ -31,6 +31,13 @@ class spirit:
             "500": status.default500
         }
 
+        self.__ipv = 4
+        self.listFile = ""
+        self.useBlackList = False
+        self.blackList = []
+        self.useWhiteList = False
+        self.whiteList = []
+
         logger.info(f"Initializing Spirit on port {self.port} and host {self.host if not host == '' else '0.0.0.0'}")
 
     # Set the url to fire the function on
@@ -92,8 +99,27 @@ class spirit:
 
     # Main function for handling a connection
     def __run(self, link, ip):
-        header = requestDecoder(link, ip)
-        logger.info(f"{header.ip} requested '{header.url}'")
+        ipv = self.__ipv
+        if self.__ipv == 6:
+            if match := re.search(r"(\d+\.\d+\.\d+\.\d+$)", ip):
+                ip = match.group(1)
+                ipv = 4
+
+        if self.useBlackList:
+            if ip in self.blackList:
+                link.close()
+                return
+        elif self.useWhiteList:
+            if not ip in self.whiteList:
+                link.close()
+                return
+
+        try:
+            header = requestDecoder(link, ip, ipv)
+            logger.info(f"{header.ip} requested '{header.url}'")
+        except Exception as e:
+            link.close()
+            return
 
         for route in self.__routes:
             if match := re.search(route["pattern"], header.url):
@@ -181,6 +207,18 @@ class spirit:
 
     # Function to cal to start the server
     def run(self):
+        if self.useWhiteList and self.useBlackList:
+            raise Exception("You can't use a black- and whitelist at the same time")
+
+        if not self.listFile == "":
+            with open(self.listFile, "r") as file:
+                if self.useWhiteList:
+                    for i in file.read().split("\n"):
+                        self.whiteList.append(i)
+                elif self.useBlackList:
+                    for i in file.read().split("\n"):
+                        self.blackList.append(i)
+
         if self.SSL:
             sslContext = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             sslContext.load_cert_chain(certfile=self.certChain, keyfile=self.certKey)
@@ -197,6 +235,7 @@ class spirit:
                 family=socket.AF_INET6,
                 dualstack_ipv6=True
             )
+            self.__ipv = 6
         else:
             sock = socket.create_server(
                 (self.host, self.port),

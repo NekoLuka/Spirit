@@ -8,3 +8,4 @@ Spirit/__pycache__
 *.db
 *.log
 ssl
+ip.txt

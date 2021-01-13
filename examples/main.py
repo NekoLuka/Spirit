@@ -2,16 +2,10 @@ from Spirit import spirit, responseEncoder, requestDecoder
 
 app = spirit()
 
-@app.authorizedRoute({"luka": "nya"}, "web", "/")
+@app.route("/")
 def index(request: requestDecoder):
     response = responseEncoder()
-    response.setData("Hello")
-    return response
-
-@app.route("/reset")
-def reset(request: requestDecoder):
-    response = responseEncoder()
-    print(request.header["authorization"])
+    response.setData("Hello world")
     return response
 
 app.run()

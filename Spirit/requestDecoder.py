@@ -28,14 +28,13 @@ class requestDecoder:
         def data(self, fieldName: str) -> bytes:
             return self.__files.get(fieldName).get("data")
 
-    def __init__(self, link: socket.socket, ip: str):
+    def __init__(self, link: socket.socket, ip: str="", ipv=4):
         header = b""
         lastByte = b""
         while True:
             tempData = link.recv(1)
             if not tempData:
-                link.close()
-                return
+                raise Exception("No data send")
             if tempData == b"\r":
                 continue
 
@@ -51,6 +50,7 @@ class requestDecoder:
         self.cookie = {}
         self.header = {}
         self.ip = ip
+        self.ipv = ipv
 
         self.method, self.url, self.protocol = headerList[0].split(" ")
 
