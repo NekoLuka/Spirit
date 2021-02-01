@@ -1,5 +1,5 @@
 import socket
-from Spirit.consts import urlDecodeHexTable
+from urllib.parse import unquote_plus
 
 class requestDecoder:
     class __data:
@@ -57,10 +57,11 @@ class requestDecoder:
         if "?" in self.url:
             self.url, get = self.url.split("?")
             if not get == '':
+                get = unquote_plus(get)
                 for i in get.split("&"):
                     if i == '':
                         continue
-                    key, value = self.__parseUrl(i.split("=", 1))
+                    key, value = i.split("=", 1)
                     self.get[key] = value
 
         headerList.pop(0)
@@ -84,11 +85,11 @@ class requestDecoder:
             contentType = self.header["content-type"]
             contentLength = int(self.header["content-length"])
             if "application/x-www-form-urlencoded" in contentType:
-                postData = link.recv(contentLength).decode("utf-8")
+                postData = unquote_plus(link.recv(contentLength).decode("utf-8"))
                 for i in postData.split("&"):
                     if i == '':
                         continue
-                    name, value = self.__parseUrl(i.split("=", 1))
+                    name, value = i.split("=", 1)
                     self.post[name] = value
 
             elif "multipart/form-data" in contentType:
@@ -122,27 +123,3 @@ class requestDecoder:
         self.header = self.__data(self.header)
         self.cookie = self.__data(self.cookie)
         self.file = self.__file(self.file)
-
-
-    def __parseUrl(self, urlList: list) -> list:
-        returnList = []
-        for i in urlList:
-            length = len(i)
-            count = 0
-            parsedString = ""
-            while count < length:
-                if i[count] == "%":
-                    try:
-                        decodedCharacter = urlDecodeHexTable[i[count:count+3]]
-                        count += 2
-                        parsedString += decodedCharacter
-                    except:
-                        parsedString += "%"
-                elif i[count] == "+":
-                    parsedString += " "
-                else:
-                    parsedString += i[count]
-                count += 1
-            returnList.append(parsedString)
-        return returnList
-
