@@ -1,13 +1,9 @@
 from Spirit.responseEncoder import responseEncoder
 from Spirit.requestDecoder import requestDecoder
-from Spirit.logger import logger
-import uuid
-import json
-import os
+from Spirit.database import database, quarryBuilder
 import time
-import threading
-import stat
-
+import pickle
+'''
 # Class for managing sessions
 class session:
     sessionFolder = "sessions/"
@@ -70,3 +66,58 @@ class session:
                 json.dump(self.__sessionVars, file)
 
 threading.Thread(target=session.cleanup).start()
+
+'''
+
+class session:
+    __db = None
+
+    def __init__(self, context: requestDecoder, response: responseEncoder, dbFile: str="sessions.db"):
+        self.close = False
+        if self.__db is None:
+            self.__db = database(dbFile, autoCommit=True)
+
+        self.__db.quarry(quarryBuilder.createTable(
+            "sessions", [
+                quarryBuilder.column("updateTime", quarryBuilder.types.INT),
+                quarryBuilder.column("key", quarryBuilder.types.INT, unique=True)
+            ]
+        ))
+
+        self.__context = context
+        self.__response = response
+
+        self.__key = self.__context.cookie["SpiritSession"]
+        if not self.__key:
+            self.__key = int(time.time()) + 69420
+            self.__response.setCookie("SpiritSession", str(self.__key))
+
+    def destroy(self):
+        return self.__db.quarry(quarryBuilder.delete(
+            "sessions", quarryBuilder.operators.comparison.equal("key", self.__key)
+        ))
+
+    def __getitem__(self, item):
+        item = self.__db.quarry(f"SELECT {item} FROM sessions", fetch=True)[0][0]
+        return pickle.loads(bytes.fromhex(item))
+
+    def __setitem__(self, name, value):
+        cols = [j[1] for j in [i for i in self.__db.quarry("pragma table_info('sessions')", fetch=True)]]
+        if name not in cols:
+            if not self.__db.quarry(quarryBuilder.addColumn(
+                "sessions",
+                quarryBuilder.column(name, quarryBuilder.types.STRING)
+            )): raise Exception("Quarry failed")
+
+        ctime = str(int(time.time()))
+        cValue = bytes.hex(pickle.dumps(value))
+        if not self.__db.quarry(f"INSERT INTO sessions (updateTime, key, {name}) VALUES ({ctime}, {str(self.__key)}, '{cValue}') "
+                                f"ON CONFLICT(key) DO UPDATE SET "
+                                f"updateTime={ctime}, {name}=excluded.{name} "
+                                f"WHERE sessions.key == excluded.key"): raise Exception("Quarry failed")
+
+    def __del__(self):
+        if self.close:
+            self.__db.cursor.close()
+            self.__db = None
+
