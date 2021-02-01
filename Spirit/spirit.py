@@ -253,7 +253,19 @@ class spirit:
                 continue
 
     def __autoRedirect(self):
-        sock = socket.create_server((self.host, self.SSLRedirectPort))
+        if socket.has_dualstack_ipv6():
+            sock = socket.create_server(
+                (self.host, self.SSLRedirectPort),
+                backlog=self.backlog,
+                family=socket.AF_INET6,
+                dualstack_ipv6=True
+            )
+            self.__ipv = 6
+        else:
+            sock = socket.create_server(
+                (self.host, self.port),
+                backlog=self.backlog
+            )
         while True:
             link, ip = sock.accept()
             header = requestDecoder(link, ip[0])

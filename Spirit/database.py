@@ -75,8 +75,16 @@ class quarryBuilder:
                f"{name} ({', '.join(columns)}) {'WITHOUT ROWID' if not rowid else ''}"
 
     @staticmethod
-    def dropTable(name):
+    def dropTable(name: str) -> str:
         return f"DROP TABLE IF EXISTS {name}"
+
+    @staticmethod
+    def addColumn(name: str, column: str) -> str:
+        return f"ALTER TABLE {name} ADD COLUMN {column}"
+
+    @staticmethod
+    def renameTable(name: str, newName: str) -> str:
+        return f"ALTER TABLE {name} RENAME TO {newName}"
 
     @staticmethod
     def insert(name: str, columns: list) -> str:
@@ -90,6 +98,10 @@ class quarryBuilder:
     @staticmethod
     def delete(name: str, condition: str=""):
         return f"DELETE FROM {name} {f'WHERE {condition}' if not condition == '' else ''}"
+
+    @staticmethod
+    def update(name: str, column: str, condition: str=""):
+        return f"UPDATE {name} SET {column} = ? {f'WHERE {condition}' if not condition == '' else ''}"
 
     @staticmethod
     def column(name: str, type: str, unique: bool=False, primaryKey: bool=False, notNull: bool=False, default="") -> str:
