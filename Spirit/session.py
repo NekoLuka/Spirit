@@ -3,6 +3,7 @@ from Spirit.requestDecoder import requestDecoder
 from Spirit.database import database, quarryBuilder
 import time
 import pickle
+import random
 '''
 # Class for managing sessions
 class session:
@@ -89,7 +90,7 @@ class session:
 
         self.__key = self.__context.cookie["SpiritSession"]
         if not self.__key:
-            self.__key = int(time.time()) + 69420
+            self.__key = int(time.time()) + random.randint(69, 69420)
             self.__response.setCookie("SpiritSession", str(self.__key))
 
     def destroy(self):
