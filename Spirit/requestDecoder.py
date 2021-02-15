@@ -1,5 +1,6 @@
 import socket
 from urllib.parse import unquote_plus
+from email.parser import BytesParser
 
 class requestDecoder:
     class __data:
@@ -77,43 +78,41 @@ class requestDecoder:
             if not cookieList[0] == '':
                 for i in cookieList:
                     name, value = i.split("=")
-                    self.cookie[name] = value
+                    self.cookie[name.lower()] = value
         except:
             pass
 
         try:
-            contentType = self.header["content-type"]
+            contentType = str(self.header["content-type"])
             contentLength = int(self.header["content-length"])
             if "application/x-www-form-urlencoded" in contentType:
-                postData = unquote_plus(link.recv(contentLength).decode("utf-8"))
+                postData = link.recv(contentLength).decode("utf-8")
                 for i in postData.split("&"):
                     if i == '':
                         continue
                     name, value = i.split("=", 1)
-                    self.post[name] = value
+                    self.post[name.lower()] = unquote_plus(value)
 
             elif "multipart/form-data" in contentType:
-                formData = link.recv(contentLength)
-                formDataList = formData.split(
-                    self.header["content-type"].split(";")[1].strip().split("=")[1].encode()
-                )
-                for i in formDataList:
+                formData = b""
+                while len(formData) < contentLength:
+                    formData += link.recv(512)
+                boundary = contentType.split(";")[1].split("=")[1].strip().encode()
+                formFields = formData.split(boundary)
+
+                for i in formFields:
                     if i == b"--" or i == b"":
                         continue
 
-                    header, value = i.split(b"\r\n\r\n")
-                    headerList = header.split(b"\r\n")
-                    while b"" in headerList:
-                        headerList.remove(b"")
-                    headerDict = {value.split(b":", 1)[0].strip().decode("utf-8"): value.split(b":", 1)[1].strip().decode("utf-8") for value in headerList}
-
-                    fieldName = headerDict.get("content-disposition").split(";")[1].strip().split("=")[1].strip("\"")
-                    try:
-                        fileName = headerDict.get("content-disposition").split(";")[2].strip().split("=")[1].strip("\"")
-                        fileContentType = headerDict.get("content-type")
-                        self.file[fieldName] = {"name": fileName, "mimeType": fileContentType, "data": value[:-4]}
-                    except:
-                        self.post[fieldName] = value[:-4].decode("utf-8")
+                    headers, data = i.split(b"\r\n\r\n", 1)
+                    headers = headers.decode("utf-8").split("\r\n")
+                    headers = [i for i in headers if not i == ""]
+                    headers = {name.strip().lower(): value.strip() for name, value in [i.split(":") for i in headers]}
+                    fieldName, fileName = headers["content-disposition"].split(";")[1:]
+                    fieldName = fieldName.split("=", 1)[1].replace('"', "").strip()
+                    fileName = fileName.split("=", 1)[1].replace('"', "").strip()
+                    mimeType = headers["content-type"]
+                    self.file[fieldName] = {"name": fileName, "mimeType": mimeType, "data": data[:-2]}
 
         except:
             pass
